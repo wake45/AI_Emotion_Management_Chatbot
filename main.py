@@ -74,11 +74,15 @@ elif st.session_state.page == "chat":
     # -------------------------------
     with st.expander("📎 파일 및 URL 첨부"):
         uploaded_excel = st.file_uploader("엑셀 파일 업로드", type=["xlsx"])
-        uploaded_video = st.file_uploader("동영상 업로드", type=["mp4", "mov"])
+        uploaded_video = st.file_uploader("동영상 업로드", type=["mp4", "mov", "avi"])
         url_input = st.text_input("🔗 URL 입력 (메일, 문서 등)")
 
     text = ""
     sources = []
+
+    # -------------------------------
+    # 엑셀 첨부 (메신저)
+    # -------------------------------
     if uploaded_excel:
         st.session_state.chat_history.append({"role": "user", "content": uploaded_excel.name})
 
@@ -86,45 +90,68 @@ elif st.session_state.page == "chat":
         sources.append("엑셀")
         text = " ".join(df.astype(str).fillna("").values.flatten())
 
-        prompt = f"사용자의 현재 감정은 '{selected_emotion}'입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해줘: {text}"
+        prompt = f"""
+        사용자의 현재 감정은 '{selected_emotion}'입니다.
+        다음 대화 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.
+        그리고 이 감정에 맞는 외부 콘텐츠를 추천해주세요.
+        YouTube 영상, 글귀, 시, 간단한 게임 링크 등으로 구성해 주세요.
+        각 콘텐츠는 간단한 설명과 함께 URL을 포함해주세요.
 
+        대화 내용:
+        {text}
+        """
         with st.spinner("🧠 감정 코칭 분석 중..."):
-            prompt = f"사용자의 현재 감정은 '{selected_emotion}'입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해줘: {text}"
             response = openai.chat.completions.create(
                 model="dev-gpt-4.1-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7
             )
 
-
             reply = response.choices[0].message.content
-
-            # 대화 흐름에 추가
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
             # 화면에 표시
             with st.chat_message("assistant"):
                 st.success("✅ 분석 완료!")
                 st.markdown("🧠 AI 코멘트:")
-                st.markdown(reply)
+
+                for line in reply.split("\n"):
+                    if "http" in line:
+                        parts = line.split("http")
+                        description = parts[0].strip("-•: ")
+                        url = "http" + parts[1].strip()
+                        st.markdown(f"**{description}** 👉 [바로가기]({url})")
+                    else:
+                        st.markdown(line)
+
 
             uploaded_excel = None  # 업로드 초기화
 
-    if uploaded_video:
+    # -------------------------------
+    # 동영상 첨부 (얼굴인식, 음성인식)
+    # -------------------------------
+    if uploaded_video and "video_processed" not in st.session_state:
+        st.session_state.video_processed = True
         st.session_state.chat_history.append({"role": "user", "content": uploaded_video.name})
-        # 동영상 얼굴인식
-        import cv2 # pip install opencv-python
-        from deepface import DeepFace # pip install deepface
 
-        video_path = uploaded_video.name
+        import cv2
+        from deepface import DeepFace
+
+        with open("temp_video.mp4", "wb") as f:
+            f.write(uploaded_video.read())
+        video_path = "temp_video.mp4"
+
         cap = cv2.VideoCapture(video_path)
-        
         frame_count = 0
         emotions = []
 
+        max_frames = 100
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+
         while cap.isOpened():
             ret, frame = cap.read()
-            if not ret or frame_count > 100:  # 100프레임까지만 분석
+            if not ret or frame_count >= max_frames:
                 break
 
             try:
@@ -134,81 +161,120 @@ elif st.session_state.page == "chat":
                 pass
 
             frame_count += 1
+            progress_bar.progress(frame_count / max_frames)
+            status_text.text(f"🔍 감정 분석 중... ({frame_count}/{max_frames} 프레임)")
 
         cap.release()
-
-        # 동영상 음성인식
-        import whisper # pip install openai-whisper
-
-        # Whisper 모델 로딩
-        model = whisper.load_model("base")
-
-        # 동영상에서 오디오 추출 (ffmpeg 필요)
-        import subprocess # pip install ffmpeg-python
-        audio_path = "audio.wav"
-        subprocess.run(["ffmpeg", "-i", uploaded_video.name, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path])
+        progress_bar.empty()
+        status_text.text("✅ 얼굴 감정 분석 완료!")
 
         # 음성 인식
+        import whisper
+        model = whisper.load_model("base")
+
+        import subprocess
+        audio_path = "audio.wav"
+        subprocess.run(["ffmpeg", "-y", "-i", uploaded_video.name, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path])
+
         result = model.transcribe(audio_path)
         transcript = result["text"]
 
-        # 감정 요약
-        from collections import Counter 
+        from collections import Counter
         emotion_summary = Counter(emotions).most_common()
 
-        # 얼굴 감정 분석
-
-        # 얼굴 감정 분석 결과 요약
+        text = ""
         text += f"영상에서 추정된 감정: {emotion_summary}\n"
         sources.append("동영상(얼굴)")
-
-        # 음성 인식 결과
         text += f"사용자의 음성 내용: {transcript}\n"
         sources.append("동영상(음성)")
 
         # GPT에게 전달
-        prompt = f"사용자의 현재 감정은 '{selected_emotion}'입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해줘: {text}"
-        response = openai.chat.completions.create(
-            model="dev-gpt-4.1-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-        )
-        st.markdown(f"📎 분석 대상: {', '.join(sources)}")
-        st.markdown("🧠 AI 코멘트:")
-        st.markdown(response.choices[0].message.content)
+        prompt = f"""
+        사용자의 현재 감정은 '{selected_emotion}'입니다.
+        다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.
+        그리고 이 감정에 맞는 외부 콘텐츠를 추천해주세요.
+        YouTube 영상, 글귀, 시, 간단한 게임 링크 등으로 구성해 주세요.
+        각 콘텐츠는 간단한 설명과 함께 URL을 포함해주세요.
 
-        uploaded_video = None  # 업로드 초기화
+        분석된 내용:
+        {text}
+        """
+
+        with st.spinner("🧠 감정 코칭 분석 중..."):
+            response = openai.chat.completions.create(
+                model="dev-gpt-4.1-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7
+            )
+            reply = response.choices[0].message.content
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+
+            st.markdown(f"📎 분석 대상: {', '.join(sources)}")
+            st.markdown("🧠 AI 코멘트:")
+
+            for line in reply.split("\n"):
+                if "http" in line:
+                    parts = line.split("http")
+                    description = parts[0].strip("-•: ")
+                    url = "http" + parts[1].strip()
+                    st.markdown(f"**{description}** 👉 [바로가기]({url})")
+                else:
+                    st.markdown(line)
+
+        uploaded_video = None
+
+    # -------------------------------
+    # URL 첨부 (메일함)
+    # -------------------------------    
     if url_input:
         st.session_state.chat_history.append({"role": "user", "content": url_input})
 
-        import requests # pip install requests  
-        from bs4 import BeautifulSoup # pip install beautifulsoup4  
-        
+        import requests
+        from bs4 import BeautifulSoup
+
         try:
-            # 1. URL 접속 및 HTML 가져오기
             with st.spinner("🧠 감정 코칭 분석 중..."):
+                # 1. URL 접속 및 HTML 가져오기
                 response = requests.get(url_input)
                 soup = BeautifulSoup(response.text, "html.parser")
 
-                # 2. 본문 텍스트 추출 (메일 내용으로 가정)
-                # 실제 메일 구조에 따라 태그 조정 필요
+                # 2. 본문 텍스트 추출
                 body_text = soup.get_text(separator=" ", strip=True)
 
-                # 3. GPT에게 감정 분석 요청
-                prompt = f"다음 메일 내용을 읽고, 보낸 사람의 감정을 분석해줘:\n\n{body_text}"
+                # 3. GPT에게 감정 분석 + 콘텐츠 추천 요청
+                prompt = f"""
+                사용자의 현재 감정은 '{selected_emotion}'입니다.
+                다음 웹페이지 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.
+                그리고 이 감정에 맞는 외부 콘텐츠를 추천해주세요.
+                YouTube 영상, 글귀, 시, 간단한 게임 링크 등으로 구성해 주세요.
+                각 콘텐츠는 간단한 설명과 함께 URL을 포함해주세요.
+
+                웹페이지 내용:
+                {body_text}
+                """
+
                 response = openai.chat.completions.create(
                     model="dev-gpt-4.1-mini",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=0.7
                 )
                 reply = response.choices[0].message.content
-
-                # 대화 흐름에 추가
                 st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
                 # 화면에 표시
                 with st.chat_message("assistant"):
-                    st.markdown(reply)
+                    st.success("✅ 분석 완료!")
+                    st.markdown("🧠 AI 코멘트:")
+
+                    for line in reply.split("\n"):
+                        if "http" in line:
+                            parts = line.split("http")
+                            description = parts[0].strip("-•: ")
+                            url = "http" + parts[1].strip()
+                            st.markdown(f"**{description}** 👉 [바로가기]({url})")
+                        else:
+                            st.markdown(line)
+
         except Exception as e:
             st.error(f"크롤링 중 오류 발생: {e}")
 
