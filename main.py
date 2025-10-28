@@ -15,6 +15,36 @@ openai.api_version = os.getenv("OPENAI_API_VERSION")
 st.set_page_config(page_title="AI 감정 코치", layout="wide")
 
 # -------------------------------
+# 답변 감정 추출
+# -------------------------------
+def return_new_emotion(response_text):
+    emotion_extract_prompt = f"""
+        다음 어시스턴트의 답변을 읽고, 사용자의 현재 감정을 추론해줘.
+        가능한 값: 행복, 평온, 슬픔, 분노, 피로, 불안
+        출력은 감정 단어만 반환해.
+        답변: "{response_text}"
+    """
+    emotion_response = openai.chat.completions.create(
+        model="dev-gpt-4.1-mini",
+        messages=[{"role": "system", "content": emotion_extract_prompt}],
+        temperature=0.7
+    )
+    emotion =  emotion_response.choices[0].message.content.strip()
+
+    emotion_map = {
+        "행복": "😊 행복",
+        "평온": "😐 평온",
+        "슬픔": "😢 슬픔",
+        "분노": "😠 분노",
+        "피로": "😩 피로",
+        "불안": "😨 불안"
+    }
+
+    if emotion in emotion_map:
+        st.session_state["emotion"] = emotion_map[emotion]
+        selected_emotion = emotion_map[emotion]
+
+# -------------------------------
 # 화면 전환 상태 관리
 # -------------------------------
 if "page" not in st.session_state:
@@ -43,7 +73,7 @@ elif st.session_state.page == "chat":
     if not selected_emotion:
         st.warning("감정이 선택되지 않았습니다. 메인 화면으로 돌아갑니다.")
         st.session_state.page = "main"
-        st.experimental_rerun()
+        st.rerun()
 
     st.info(f"🧠 선택한 감정: **{selected_emotion}**")
     st.title("💬 감정 코칭 챗봇")
@@ -56,7 +86,13 @@ elif st.session_state.page == "chat":
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         
-        system_prompt = f"당신은 감정 코치입니다. 사용자의 현재 감정은 '{selected_emotion}'입니다. 이에 맞춰 공감하고 코칭하세요."
+        system_prompt = (
+            f"당신은 감정 코치입니다. 사용자의 현재 감정은 '{selected_emotion}'입니다. "
+            f"사용자의 대화를 분석하고 상대방이 필요로 할때 공감과 코칭을 제공하세요. "
+            f"또한 필요하다면 감정에 맞는 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 "
+            f"간단한 설명과 함께 URL로 추천하세요."
+        )
+
         messages = [{"role": "system", "content": system_prompt}] + st.session_state.chat_history
         response = openai.chat.completions.create(
             model="dev-gpt-4.1-mini",
@@ -64,6 +100,7 @@ elif st.session_state.page == "chat":
             temperature=0.7
         )
         reply = response.choices[0].message.content
+        return_new_emotion(reply)
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
     for msg in st.session_state.chat_history:
@@ -127,7 +164,8 @@ elif st.session_state.page == "chat":
                         st.markdown(f"**{description}** 👉 [바로가기]({url})")
                     else:
                         st.markdown(line)
-
+            
+            return_new_emotion(reply)
 
             uploaded_excel = None  # 업로드 초기화
             st.session_state["uploaded_excel"] = None
@@ -230,6 +268,8 @@ elif st.session_state.page == "chat":
                 else:
                     st.markdown(line)
 
+            return_new_emotion(reply)
+
             uploaded_video = None
             if "video_processed" in st.session_state:
                 del st.session_state["video_processed"]
@@ -276,6 +316,8 @@ elif st.session_state.page == "chat":
                 )
                 reply = response.choices[0].message.content
                 st.session_state.chat_history.append({"role": "assistant", "content": reply})
+
+                return_new_emotion(reply)
 
                 # 화면에 표시
                 with st.chat_message("assistant"):
