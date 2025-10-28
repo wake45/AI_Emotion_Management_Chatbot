@@ -55,6 +55,7 @@ elif st.session_state.page == "chat":
 
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
         system_prompt = f"당신은 감정 코치입니다. 사용자의 현재 감정은 '{selected_emotion}'입니다. 이에 맞춰 공감하고 코칭하세요."
         messages = [{"role": "system", "content": system_prompt}] + st.session_state.chat_history
         response = openai.chat.completions.create(
@@ -72,10 +73,13 @@ elif st.session_state.page == "chat":
     # -------------------------------
     # 첨부 영역
     # -------------------------------
+    if "upload_key" not in st.session_state:
+        st.session_state["upload_key"] = "1"
+
     with st.expander("📎 파일 및 URL 첨부"):
-        uploaded_excel = st.file_uploader("엑셀 파일 업로드", type=["xlsx"])
-        uploaded_video = st.file_uploader("동영상 업로드", type=["mp4", "mov", "avi"])
-        url_input = st.text_input("🔗 URL 입력 (메일, 문서 등)")
+        uploaded_excel = st.file_uploader("엑셀 파일 업로드", type=["xlsx"], key="excel_" + st.session_state["upload_key"])
+        uploaded_video = st.file_uploader("동영상 업로드", type=["mp4", "mov", "avi"], key="video_" + st.session_state["upload_key"])
+        url_input = st.text_input("🔗 URL 입력 (메일, 문서 등)", key="url_" + st.session_state["upload_key"])
 
     text = ""
     sources = []
@@ -126,6 +130,11 @@ elif st.session_state.page == "chat":
 
 
             uploaded_excel = None  # 업로드 초기화
+            st.session_state["uploaded_excel"] = None
+
+            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+            st.rerun()
 
     # -------------------------------
     # 동영상 첨부 (얼굴인식, 음성인식)
@@ -221,7 +230,14 @@ elif st.session_state.page == "chat":
                 else:
                     st.markdown(line)
 
-        uploaded_video = None
+            uploaded_video = None
+            if "video_processed" in st.session_state:
+                del st.session_state["video_processed"]
+
+            # 🔑 첨부 영역 초기화
+            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+            st.rerun()
 
     # -------------------------------
     # URL 첨부 (메일함)
@@ -278,4 +294,12 @@ elif st.session_state.page == "chat":
         except Exception as e:
             st.error(f"크롤링 중 오류 발생: {e}")
 
-        url_input = ""  # 입력 초기화
+        url_input = ""
+        key = "url_" + st.session_state["upload_key"]
+        if key in st.session_state:
+            del st.session_state[key]
+
+        # 🔑 첨부 영역 초기화
+        st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+        st.rerun()
