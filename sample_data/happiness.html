@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>행복 메일함</title>
+  <style>
+    :root {
+      --bg: #fffdf7;
+      --primary: #ffb84d;
+      --accent: #ffd580;
+      --text: #333;
+      --muted: #666;
+      --happy: #ffedb5;
+      --border: #eee2bd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      color: #2b2b2b;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    header .badge {
+      background: #fff4d9; color: #8a5a00;
+      padding: 6px 10px; border-radius: 999px;
+      font-weight: 600; font-size: 14px;
+      border: 1px solid #ffe2a6;
+    }
+    header h1 {
+      margin: 0; font-size: 20px; font-weight: 700;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 0; min-height: calc(100vh - 64px);
+    }
+    aside {
+      border-right: 1px solid var(--border);
+      background: #fffaf0;
+    }
+    .search {
+      padding: 12px; border-bottom: 1px solid var(--border);
+      background: #fff9e8;
+    }
+    .search input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #f3e2b5; border-radius: 8px;
+      outline: none; font-size: 14px;
+      background: #fffef9;
+    }
+    .list {
+      display: flex; flex-direction: column;
+    }
+    .mail-item {
+      display: grid; grid-template-columns: 28px 1fr auto;
+      gap: 10px; padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; background: #fff;
+    }
+    .mail-item:hover { background: #fffef3; }
+    .emoji {
+      font-size: 18px; align-self: center;
+    }
+    .mail-meta {
+      display: grid; gap: 4px;
+    }
+    .subject { font-weight: 700; font-size: 14px; }
+    .preview { color: var(--muted); font-size: 13px; line-height: 1.3; }
+    .time { color: var(--muted); font-size: 12px; align-self: center; }
+    .label {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 999px;
+      background: var(--happy); border: 1px solid #ffe8a8; color: #7a5400;
+      margin-left: 6px;
+    }
+    main {
+      background: #fff; display: grid; grid-template-rows: auto 1fr;
+    }
+    .detail-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: #fffef6; display: flex; align-items: center; gap: 10px;
+    }
+    .detail-header h2 {
+      margin: 0; font-size: 18px;
+    }
+    .detail-body {
+      padding: 20px; line-height: 1.7; font-size: 15px;
+    }
+    .meta-line {
+      color: var(--muted); font-size: 13px; margin-bottom: 12px;
+    }
+    .toolbar {
+      margin-left: auto; display: flex; gap: 8px;
+    }
+    .btn {
+      padding: 8px 12px; font-size: 13px; border-radius: 8px;
+      border: 1px solid #f3e2b5; background: #fffdfa; cursor: pointer;
+    }
+    .btn:hover { background: #fff6da; }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">😊 행복</span>
+    <h1>행복 메일함</h1>
+    <div class="toolbar">
+      <button class="btn">새로고침</button>
+      <button class="btn">정렬</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside>
+      <div class="search">
+        <input type="text" placeholder="메일함 검색 (제목/발신자)" />
+      </div>
+      <div class="list" id="mailList">
+        <!-- 더미 메일 항목들 -->
+        <div class="mail-item" onclick="openMail(0)">
+          <div class="emoji">😊</div>
+          <div class="mail-meta">
+            <div class="subject">출근길 햇살이 너무 좋아요 <span class="label">행복</span></div>
+            <div class="preview">오늘은 하늘이 맑아서 하루가 기대돼요.</div>
+          </div>
+          <div class="time">오전 9:12</div>
+        </div>
+
+        <div class="mail-item" onclick="openMail(1)">
+          <div class="emoji">😊</div>
+          <div class="mail-meta">
+            <div class="subject">팀 프로젝트 성공! 🎉 <span class="label">행복</span></div>
+            <div class="preview">다들 고생 많았어요. 함께 해서 더 즐거웠습니다.</div>
+          </div>
+          <div class="time">어제</div>
+        </div>
+
+        <div class="mail-item" onclick="openMail(2)">
+          <div class="emoji">😊</div>
+          <div class="mail-meta">
+            <div class="subject">강아지가 처음으로 손을 줬어요 <span class="label">행복</span></div>
+            <div class="preview">작은 변화가 이렇게 기쁠 줄이야.</div>
+          </div>
+          <div class="time">2일 전</div>
+        </div>
+
+        <div class="mail-item" onclick="openMail(3)">
+          <div class="emoji">😊</div>
+          <div class="mail-meta">
+            <div class="subject">커피가 딱 취향저격 ☕ <span class="label">행복</span></div>
+            <div class="preview">오늘의 라떼는 완벽 그 자체!</div>
+          </div>
+          <div class="time">3일 전</div>
+        </div>
+
+        <div class="mail-item" onclick="openMail(4)">
+          <div class="emoji">😊</div>
+          <div class="mail-meta">
+            <div class="subject">주말 산책 계획 세웠어요 <span class="label">행복</span></div>
+            <div class="preview">숲길 걸으며 여유를 만끽할 예정이에요.</div>
+          </div>
+          <div class="time">5일 전</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="detail-header">
+        <span class="emoji">😊</span>
+        <h2 id="detailSubject">행복한 순간을 기록해요</h2>
+      </div>
+      <div class="detail-body">
+        <div class="meta-line" id="detailMeta">발신: 나에게 · 수신: 행복 메일함 · 날짜: 오늘</div>
+        <div id="detailContent">
+          오늘의 기쁜 소식을 모아두는 공간입니다. 왼쪽 목록에서 메일을 선택하면 내용이 표시됩니다.
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 더미 메일 데이터
+    const mails = [
+      {
+        subject: "출근길 햇살이 너무 좋아요",
+        content: "아침 햇살이 따뜻해서 출근길이 행복했어요. 작은 시작이 하루를 바꾸네요.",
+        meta: "발신: 나 · 수신: 행복 메일함 · 날짜: 오늘 오전 9:12",
+        emoji: "😊"
+      },
+      {
+        subject: "팀 프로젝트 성공! 🎉",
+        content: "우리 팀 정말 최고예요! 협업의 에너지 덕분에 즐거움이 배가 되었네요.",
+        meta: "발신: 팀 리더 · 수신: 나 · 날짜: 어제",
+        emoji: "😊"
+      },
+      {
+        subject: "강아지가 처음으로 손을 줬어요",
+        content: "처음으로 손을 건네는 순간, 온 마음이 따뜻해졌어요. 작은 성장이 큰 행복을 주네요.",
+        meta: "발신: 반려견 일지 · 수신: 나 · 날짜: 2일 전",
+        emoji: "😊"
+      },
+      {
+        subject: "커피가 딱 취향저격 ☕",
+        content: "라떼가 크리미하고 향이 완벽했어요. 사소한 것들이 하루를 빛나게 해요.",
+        meta: "발신: 카페 · 수신: 나 · 날짜: 3일 전",
+        emoji: "😊"
+      },
+      {
+        subject: "주말 산책 계획 세웠어요",
+        content: "숲길을 천천히 걸으며 숨을 고를 생각에 마음이 설레요.",
+        meta: "발신: 일정 · 수신: 나 · 날짜: 5일 전",
+        emoji: "😊"
+      }
+    ];
+
+    function openMail(index) {
+      const mail = mails[index];
+      document.getElementById("detailSubject").textContent = mail.subject;
+      document.getElementById("detailContent").textContent = mail.content;
+      document.getElementById("detailMeta").textContent = mail.meta;
+    }
+  </script>
+</body>
+</html>

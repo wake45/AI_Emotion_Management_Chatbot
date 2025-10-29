@@ -2,9 +2,17 @@ import streamlit as st # pip install streamlit
 import openai # pip install openai
 import pandas as pd # pip install pandas
 import os
-from dotenv import load_dotenv # pip install python-dotenv
 import requests
 import json
+import cv2
+import whisper
+import subprocess
+import requests
+
+from dotenv import load_dotenv # pip install python-dotenv
+from deepface import DeepFace
+from collections import Counter
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -60,6 +68,8 @@ def return_new_emotion(response_text):
 # 추천 콘텐츠 제공
 # -------------------------------
 def recommend_content_for_emotion(user_input):
+
+    # 임베딩
     embedding_url = f"{embedding_azure_endpoint}/openai/deployments/{embedding_deployment}/embeddings?api-version={embedding_api_version}"
     embedding_headers = {
         "api-key": embedding_api_key,
@@ -71,7 +81,7 @@ def recommend_content_for_emotion(user_input):
     embedding_response = requests.post(embedding_url, headers=embedding_headers, json=embedding_data)
     query_vector = embedding_response.json()["data"][0]["embedding"]
 
-    # 2. Azure AI Search에 벡터 검색 요청
+    # Azure AI Search에 벡터 검색 요청
     search_url = f"{search_endpoint}/indexes/{search_index}/docs/search?api-version=2023-07-01-Preview"
     search_headers = {
         "api-key": search_api_key,
@@ -86,7 +96,42 @@ def recommend_content_for_emotion(user_input):
         },
         "select": "chunk"
     }
-    return requests.post(search_url, headers=search_headers, json=search_body)
+    
+    vector_response = requests.post(search_url, headers=search_headers, json=search_body)
+    search_results = vector_response.json().get("value", [])
+    return "\n".join([f"- {doc['chunk']}" for doc in search_results])
+
+# -------------------------------
+# GPT 프롬포트 사용
+# -------------------------------
+def use_openAI(user_input, recommended_texts):
+    prompt = (
+        f"당신은 따뜻한 감정 코치입니다."
+        f"다음 내용은 사용자의 입력값입니다. 해당 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
+        f"---\n"
+        f"{user_input}\n"
+        f"---\n"
+        f"아래에는 Azure Search에서 반환된 콘텐츠 목록이 있습니다. 각 콘텐츠에는 emotion 값이 포함되어 있습니다.\n"
+        f"반드시 이 emotion 값을 확인하여, 사용자의 현재 감정과 일치하는 콘텐츠만 선별해 응답에 활용하세요.\n"
+        f"---\n"
+        f"{recommended_texts}\n"
+        f"---\n"
+        f"응답을 구성할 때는:\n"
+        f"1. 사용자의 감정을 먼저 공감해 주세요.\n"
+        f"2. 검색된 콘텐츠 중 emotion이 사용자의 감정과 일치하는 것만 골라 간단히 소개하세요.\n"
+        f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
+        f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
+    )
+    print(prompt)
+
+    messages = [{"role": "system", "content": prompt}] + st.session_state.chat_history
+    response = openai.chat.completions.create(
+        model="dev-gpt-4.1-mini",
+        messages=messages,
+        temperature=0.7
+    )
+
+    return response.choices[0].message.content
 
 # -------------------------------
 # 화면 전환 상태 관리
@@ -127,42 +172,23 @@ elif st.session_state.page == "chat":
 
     user_input = st.chat_input("지금 어떤 기분이신가요?")
 
+    # -------------------------------
+    # 챗봇 영역
+    # -------------------------------
     if user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
 
-        # 사용자 입력을 임베딩 벡터로 변환
-        search_results = recommend_content_for_emotion(user_input).json().get("value", [])
+        with st.spinner("🧠 감정 코칭 분석 중..."):
 
-        # 검색 결과를 GPT 프롬프트에 포함
-        recommended_texts = "\n".join([f"- {doc['chunk']}" for doc in search_results])
-        prompt = (
-            f"당신은 따뜻한 감정 코치입니다."
-            f"다음 내용은 사용자의 입력값입니다. 해당 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
-            f"---\n"
-            f"{user_input}\n"
-            f"---\n"
-            f"아래에는 Azure Search에서 반환된 콘텐츠 목록이 있습니다. 각 콘텐츠에는 emotion 값이 포함되어 있습니다.\n"
-            f"반드시 이 emotion 값을 확인하여, 사용자의 현재 감정과 일치하는 콘텐츠만 선별해 응답에 활용하세요.\n"
-            f"---\n"
-            f"{recommended_texts}\n"
-            f"---\n"
-            f"응답을 구성할 때는:\n"
-            f"1. 사용자의 감정을 먼저 공감해 주세요.\n"
-            f"2. 검색된 콘텐츠 중 emotion이 사용자의 감정과 일치하는 것만 골라 간단히 소개하세요.\n"
-            f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
-            f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
-        )
+            recommended_texts = recommend_content_for_emotion(user_input)
 
-        messages = [{"role": "system", "content": prompt}] + st.session_state.chat_history
-        response = openai.chat.completions.create(
-            model="dev-gpt-4.1-mini",
-            messages=messages,
-            temperature=0.7
-        )
-        reply = response.choices[0].message.content
+            reply = use_openAI(user_input, recommended_texts)
+
         return_new_emotion(reply)
+
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
+    # 화면에 표시
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
@@ -191,37 +217,12 @@ elif st.session_state.page == "chat":
         sources.append("엑셀")
         text = " ".join(df.astype(str).fillna("").values.flatten())
 
-        vector_response = recommend_content_for_emotion(text)
-        search_results = vector_response.json().get("value", [])
-
-        # 검색 결과를 GPT 프롬프트에 포함
-        recommended_texts = "\n".join([f"- {doc['chunk']}" for doc in search_results])
-        prompt = (
-            f"당신은 따뜻한 감정 코치입니다."
-            f"다음 내용은 사용자의 입력값입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
-            f"---\n"
-            f"{text}\n"
-            f"---\n"
-            f"아래에는 Azure Search에서 반환된 콘텐츠 목록이 있습니다. 각 콘텐츠에는 emotion 값이 포함되어 있습니다.\n"
-            f"반드시 이 emotion 값을 확인하여, 사용자의 현재 감정과 일치하는 콘텐츠만 선별해 응답에 활용하세요.\n"
-            f"---\n"
-            f"{recommended_texts}\n"
-            f"---\n"
-            f"응답을 구성할 때는:\n"
-            f"1. 사용자의 감정을 먼저 공감해 주세요.\n"
-            f"2. 검색된 콘텐츠 중 emotion이 사용자의 감정과 일치하는 것만 골라 간단히 소개하세요.\n"
-            f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
-            f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
-        )
-
         with st.spinner("🧠 감정 코칭 분석 중..."):
-            response = openai.chat.completions.create(
-                model="dev-gpt-4.1-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7
-            )
 
-            reply = response.choices[0].message.content
+            recommended_texts = recommend_content_for_emotion(text)
+
+            reply = use_openAI(text, recommended_texts)
+
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
             # 화면에 표시
@@ -253,9 +254,6 @@ elif st.session_state.page == "chat":
     if uploaded_video and "video_processed" not in st.session_state:
         st.session_state.video_processed = True
         st.session_state.chat_history.append({"role": "user", "content": uploaded_video.name})
-
-        import cv2
-        from deepface import DeepFace
 
         with open("temp_video.mp4", "wb") as f:
             f.write(uploaded_video.read())
@@ -289,60 +287,34 @@ elif st.session_state.page == "chat":
         status_text.text("✅ 얼굴 감정 분석 완료!")
 
         # 음성 인식
-        import whisper
         model = whisper.load_model("base")
 
-        import subprocess
         audio_path = "audio.wav"
-        subprocess.run(["ffmpeg", "-y", "-i", uploaded_video.name, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path])
+        subprocess.run(["ffmpeg", "-y", "-i", video_path, "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", audio_path])
 
         result = model.transcribe(audio_path)
         transcript = result["text"]
 
-        from collections import Counter
         emotion_summary = Counter(emotions).most_common()
+        dominant_emotion = emotion_summary[0][0] if emotion_summary else "unknown"
 
-        text = ""
-        text += f"영상에서 추정된 감정: {emotion_summary}\n"
-        sources.append("동영상(얼굴)")
+        text = f"영상에서 추정된 감정은 '{dominant_emotion}'입니다.\n"
         text += f"사용자의 음성 내용: {transcript}\n"
+        sources.append("동영상(얼굴)")
         sources.append("동영상(음성)")
 
-        vector_response = recommend_content_for_emotion(text)
-        search_results = vector_response.json().get("value", [])
-
-        # 검색 결과를 GPT 프롬프트에 포함
-        recommended_texts = "\n".join([f"- {doc['chunk']}" for doc in search_results])
-        prompt = (
-            f"당신은 따뜻한 감정 코치입니다.\n"
-            f"다음 내용은 사용자의 입력값입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
-            f"---\n"
-            f"{text}\n"
-            f"---\n"
-            f"아래에는 Azure Search에서 반환된 콘텐츠 목록이 있습니다. 각 콘텐츠에는 emotion 값이 포함되어 있습니다.\n"
-            f"반드시 이 emotion 값을 확인하여, 사용자의 현재 감정과 일치하는 콘텐츠만 선별해 응답에 활용하세요.\n"
-            f"---\n"
-            f"{recommended_texts}\n"
-            f"---\n"
-            f"응답을 구성할 때는:\n"
-            f"1. 사용자의 감정을 먼저 공감해 주세요.\n"
-            f"2. 검색된 콘텐츠 중 emotion이 사용자의 감정과 일치하는 것만 골라 간단히 소개하세요.\n"
-            f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
-            f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
-        )
-
         with st.spinner("🧠 감정 코칭 분석 중..."):
-            response = openai.chat.completions.create(
-                model="dev-gpt-4.1-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7
-            )
-            reply = response.choices[0].message.content
+
+            recommended_texts = recommend_content_for_emotion(text)
+
+            reply = use_openAI(text, recommended_texts)
+
             st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
             st.markdown(f"📎 분석 대상: {', '.join(sources)}")
             st.markdown("🧠 AI 코멘트:")
 
+            # 화면에 표시
             for line in reply.split("\n"):
                 if "http" in line:
                     parts = line.split("http")
@@ -369,9 +341,6 @@ elif st.session_state.page == "chat":
     if url_input:
         st.session_state.chat_history.append({"role": "user", "content": url_input})
 
-        import requests
-        from bs4 import BeautifulSoup
-
         try:
             with st.spinner("🧠 감정 코칭 분석 중..."):
                 # 1. URL 접속 및 HTML 가져오기
@@ -381,34 +350,10 @@ elif st.session_state.page == "chat":
                 # 2. 본문 텍스트 추출
                 text = soup.get_text(separator=" ", strip=True)
 
-                vector_response = recommend_content_for_emotion(text)
-                search_results = vector_response.json().get("value", [])
+                recommended_texts = recommend_content_for_emotion(text)
 
-                # 검색 결과를 GPT 프롬프트에 포함
-                recommended_texts = "\n".join([f"- {doc['chunk']}" for doc in search_results])
-                prompt = (
-                    f"당신은 따뜻한 감정 코치입니다.\n"
-                    f"다음 내용은 사용자의 입력값입니다. 다음 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
-                    f"---\n"
-                    f"{text}\n"
-                    f"---\n"
-                    f"아래에는 Azure Search에서 반환된 콘텐츠 목록이 있습니다. 각 콘텐츠에는 emotion 값이 포함되어 있습니다.\n"
-                    f"반드시 이 emotion 값을 확인하여, 사용자의 현재 감정과 일치하는 콘텐츠만 선별해 응답에 활용하세요.\n"
-                    f"---\n"
-                    f"{recommended_texts}\n"
-                    f"---\n"
-                    f"응답을 구성할 때는:\n"
-                    f"1. 사용자의 감정을 먼저 공감해 주세요.\n"
-                    f"2. 검색된 콘텐츠 중 emotion이 사용자의 감정과 일치하는 것만 골라 간단히 소개하세요.\n"
-                    f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
-                    f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
-                )
-                response = openai.chat.completions.create(
-                    model="dev-gpt-4.1-mini",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7
-                )
-                reply = response.choices[0].message.content
+                reply = use_openAI(text, recommended_texts)
+
                 st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
                 return_new_emotion(reply)

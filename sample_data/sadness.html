@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>슬픔 메일함</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --primary: #9bb0c9;
+      --accent: #c3d0e0;
+      --text: #333;
+      --muted: #666;
+      --sad: #e8edf3;
+      --border: #d0d7e2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      color: #2b2b2b;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    header .badge {
+      background: #f0f4fa; color: #2f3d55;
+      padding: 6px 10px; border-radius: 999px;
+      font-weight: 600; font-size: 14px;
+      border: 1px solid #c3d0e0;
+    }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 64px);
+    }
+    aside { border-right: 1px solid var(--border); background: #fdfefe; }
+    .search {
+      padding: 12px; border-bottom: 1px solid var(--border);
+      background: #f6f8fb;
+    }
+    .search input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #cfd8e5; border-radius: 8px;
+      outline: none; font-size: 14px;
+      background: #ffffff;
+    }
+    .list { display: flex; flex-direction: column; }
+    .mail-item {
+      display: grid; grid-template-columns: 28px 1fr auto;
+      gap: 10px; padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; background: #fff;
+    }
+    .mail-item:hover { background: #f7f9fc; }
+    .emoji { font-size: 18px; align-self: center; }
+    .mail-meta { display: grid; gap: 4px; }
+    .subject { font-weight: 700; font-size: 14px; }
+    .preview { color: var(--muted); font-size: 13px; line-height: 1.3; }
+    .time { color: var(--muted); font-size: 12px; align-self: center; }
+    .label {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 999px;
+      background: var(--sad); border: 1px solid #c3d0e0; color: #2f3d55;
+      margin-left: 6px;
+    }
+    main { background: #fff; display: grid; grid-template-rows: auto 1fr; }
+    .detail-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: #f9fbfd; display: flex; align-items: center; gap: 10px;
+    }
+    .detail-header h2 { margin: 0; font-size: 18px; }
+    .detail-body { padding: 20px; line-height: 1.7; font-size: 15px; }
+    .meta-line { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    .toolbar { margin-left: auto; display: flex; gap: 8px; }
+    .btn {
+      padding: 8px 12px; font-size: 13px; border-radius: 8px;
+      border: 1px solid #cfd8e5; background: #ffffff; cursor: pointer;
+    }
+    .btn:hover { background: #e9f0f8; }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">😢 슬픔</span>
+    <h1>슬픔 메일함</h1>
+    <div class="toolbar">
+      <button class="btn">새로고침</button>
+      <button class="btn">정렬</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside>
+      <div class="search">
+        <input type="text" placeholder="메일함 검색 (제목/발신자)" />
+      </div>
+      <div class="list" id="mailList">
+        <div class="mail-item" onclick="openMail(0)">
+          <div class="emoji">😢</div>
+          <div class="mail-meta">
+            <div class="subject">비 오는 저녁 <span class="label">슬픔</span></div>
+            <div class="preview">창밖을 보니 마음이 무겁습니다.</div>
+          </div>
+          <div class="time">오늘</div>
+        </div>
+        <div class="mail-item" onclick="openMail(1)">
+          <div class="emoji">😢</div>
+          <div class="mail-meta">
+            <div class="subject">헤어진 친구 생각 <span class="label">슬픔</span></div>
+            <div class="preview">오랜만에 떠올라 마음이 아려옵니다.</div>
+          </div>
+          <div class="time">어제</div>
+        </div>
+        <div class="mail-item" onclick="openMail(2)">
+          <div class="emoji">😢</div>
+          <div class="mail-meta">
+            <div class="subject">텅 빈 방 <span class="label">슬픔</span></div>
+            <div class="preview">조용한 공간이 더 외롭게 느껴집니다.</div>
+          </div>
+          <div class="time">2일 전</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="detail-header">
+        <span class="emoji">😢</span>
+        <h2 id="detailSubject">슬픈 순간을 기록해요</h2>
+      </div>
+      <div class="detail-body">
+        <div class="meta-line" id="detailMeta">발신: 나에게 · 수신: 슬픔 메일함 · 날짜: 오늘</div>
+        <div id="detailContent">
+          마음이 무거운 순간들을 모아두는 공간입니다. 왼쪽 목록에서 메일을 선택하면 내용이 표시됩니다.
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const mails = [
+      {
+        subject: "비 오는 저녁",
+        content: "창밖에 내리는 비를 보며 마음이 무거워졌습니다. 고요한 빗소리가 오히려 외로움을 더 크게 느끼게 합니다.",
+        meta: "발신: 나 · 수신: 슬픔 메일함 · 날짜: 오늘",
+        emoji: "😢"
+      },
+      {
+        subject: "헤어진 친구 생각",
+        content: "오랜만에 예전 친구가 떠올랐습니다. 함께 웃던 기억이 그리워져 마음이 아려옵니다.",
+        meta: "발신: 기억 · 수신: 나 · 날짜: 어제",
+        emoji: "😢"
+      },
+      {
+        subject: "텅 빈 방",
+        content: "조용한 방에 혼자 앉아 있으니 공허함이 크게 다가옵니다. 작은 소리조차 메아리처럼 울립니다.",
+        meta: "발신: 일기 · 수신: 나 · 날짜: 2일 전",
+        emoji: "😢"
+      }
+    ];
+
+    function openMail(index) {
+      const mail = mails[index];
+      document.getElementById("detailSubject").textContent = mail.subject;
+      document.getElementById("detailContent").textContent = mail.content;
+      document.getElementById("detailMeta").textContent = mail.meta;
+    }
+  </script>
+</body>
+</html>
