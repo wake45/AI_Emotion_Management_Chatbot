@@ -3,14 +3,13 @@ openai
 pandas
 requests
 opencv-python-headless
-whisper
+openai-whisper
 python-dotenv
-tensorflow-cpu
+tensorflow-cpu==2.15.0
 gdown
 mtcnn
 retina-face
 tqdm
 Pillow
 Flask
-tf-keras
 openpyxl
