@@ -108,6 +108,7 @@ def use_openAI(user_input, recommended_texts):
     prompt = (
         f"당신은 따뜻한 감정 코치입니다."
         f"다음 내용은 사용자의 입력값입니다. 해당 내용을 기반으로 감정을 분석하고, 감정 코칭을 해주세요.\n"
+        f"또한 응답을 위해 입력에 민감하거나 오해될 수 있는 표현이 있더라도, 그대로 반복하지 말고 안전한 언어로 변환해서 응답하세요.\n"
         f"---\n"
         f"{user_input}\n"
         f"---\n"
@@ -122,8 +123,10 @@ def use_openAI(user_input, recommended_texts):
         f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
         f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
     )
-
+ 
     messages = [{"role": "system", "content": prompt}] + st.session_state.chat_history
+    print(messages)
+
     response = openai.chat.completions.create(
         model="dev-gpt-4.1-mini",
         messages=messages,
@@ -210,49 +213,57 @@ elif st.session_state.page == "chat":
     # 엑셀 첨부 (메신저)
     # -------------------------------
     if uploaded_excel:
-        st.session_state.chat_history.append({"role": "user", "content": uploaded_excel.name})
-
         df = pd.read_excel(uploaded_excel)
         sources.append("엑셀")
         text = " ".join(df.astype(str).fillna("").values.flatten())
+
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": f"엑셀제목 : {uploaded_excel.name}  \n엑셀내용  \n{text}"
+        })
 
         with st.spinner("🧠 감정 코칭 분석 중..."):
 
             recommended_texts = recommend_content_for_emotion(text)
 
-            reply = use_openAI(text, recommended_texts)
+            try:
+                reply = use_openAI(text, recommended_texts)
+                
 
-            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
-            # 화면에 표시
-            with st.chat_message("assistant"):
-                st.success("✅ 분석 완료!")
-                st.markdown("🧠 AI 코멘트:")
+                # 화면에 표시
+                with st.chat_message("assistant"):
+                    st.success("✅ 분석 완료!")
+                    st.markdown("🧠 AI 코멘트:")
 
-                for line in reply.split("\n"):
-                    if "http" in line:
-                        parts = line.split("http")
-                        description = parts[0].strip("-•: ")
-                        url = "http" + parts[1].strip()
-                        st.markdown(f"**{description}** 👉 [바로가기]({url})")
-                    else:
-                        st.markdown(line)
-            
-            return_new_emotion(reply)
+                    for line in reply.split("\n"):
+                        if "http" in line:
+                            parts = line.split("http")
+                            description = parts[0].strip("-•: ")
+                            url = "http" + parts[1].strip()
+                            st.markdown(f"**{description}** 👉 [바로가기]({url})")
+                        else:
+                            st.markdown(line)
+                
+                return_new_emotion(reply)
+
+                st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+                st.rerun()
+
+            except openai.BadRequestError as e:
+            # Azure OpenAI 콘텐츠 필터에 걸린 경우
+                st.markdown("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
 
             uploaded_excel = None  # 업로드 초기화
             st.session_state["uploaded_excel"] = None
-
-            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
-
-            st.rerun()
 
     # -------------------------------
     # 동영상 첨부 (얼굴인식, 음성인식)
     # -------------------------------
     if uploaded_video and "video_processed" not in st.session_state:
         st.session_state.video_processed = True
-        st.session_state.chat_history.append({"role": "user", "content": uploaded_video.name})
 
         with open("temp_video.mp4", "wb") as f:
             f.write(uploaded_video.read())
@@ -297,58 +308,69 @@ elif st.session_state.page == "chat":
         emotion_summary = Counter(emotions).most_common()
         dominant_emotion = emotion_summary[0][0] if emotion_summary else "unknown"
 
-        text = f"영상에서 추정된 감정은 '{dominant_emotion}'입니다.\n"
-        text += f"사용자의 음성 내용: {transcript}\n"
+        text = f"영상에서 추정된 감정은 '{dominant_emotion}'입니다.  \n"
+        #text += f"사용자의 음성 내용: {transcript}  \n"
         sources.append("동영상(얼굴)")
-        sources.append("동영상(음성)")
-        print(text)
+        #sources.append("동영상(음성)")
+        
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": f"영상제목 : {uploaded_video.name}  \n영상내용  \n{text}"
+        })
 
         with st.spinner("🧠 감정 코칭 분석 중..."):
 
             recommended_texts = recommend_content_for_emotion(text)
 
-            reply = use_openAI(text, recommended_texts)
+            try:
+                reply = use_openAI(text, recommended_texts)
 
-            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                st.session_state.chat_history.append({"role": "assistant", "content": reply})
 
-            st.markdown(f"📎 분석 대상: {', '.join(sources)}")
-            st.markdown("🧠 AI 코멘트:")
+                st.markdown(f"📎 분석 대상: {', '.join(sources)}")
+                st.markdown("🧠 AI 코멘트:")
 
-            # 화면에 표시
-            for line in reply.split("\n"):
-                if "http" in line:
-                    parts = line.split("http")
-                    description = parts[0].strip("-•: ")
-                    url = "http" + parts[1].strip()
-                    st.markdown(f"**{description}** 👉 [바로가기]({url})")
-                else:
-                    st.markdown(line)
+                # 화면에 표시
+                for line in reply.split("\n"):
+                    if "http" in line:
+                        parts = line.split("http")
+                        description = parts[0].strip("-•: ")
+                        url = "http" + parts[1].strip()
+                        st.markdown(f"**{description}** 👉 [바로가기]({url})")
+                    else:
+                        st.markdown(line)
 
-            return_new_emotion(reply)
+                return_new_emotion(reply)
 
+                # 🔑 첨부 영역 초기화
+                st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+                st.rerun()
+            except openai.BadRequestError as e:
+            # Azure OpenAI 콘텐츠 필터에 걸린 경우
+                st.error("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
+                
             uploaded_video = None
             if "video_processed" in st.session_state:
                 del st.session_state["video_processed"]
-
-            # 🔑 첨부 영역 초기화
-            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
-
-            st.rerun()
-
     # -------------------------------
     # URL 첨부 (메일함)
     # -------------------------------    
     if url_input:
-        st.session_state.chat_history.append({"role": "user", "content": url_input})
-
         try:
             with st.spinner("🧠 감정 코칭 분석 중..."):
                 # 1. URL 접속 및 HTML 가져오기
                 response = requests.get(url_input)
+                response.encoding = "utf-8"
                 soup = BeautifulSoup(response.text, "html.parser")
 
                 # 2. 본문 텍스트 추출
                 text = soup.get_text(separator=" ", strip=True)
+
+                st.session_state.chat_history.append({
+                    "role": "user",
+                    "content": f"URL : {url_input}  \n내용  \n{text}"
+                })
 
                 recommended_texts = recommend_content_for_emotion(text)
 
@@ -372,15 +394,20 @@ elif st.session_state.page == "chat":
                         else:
                             st.markdown(line)
 
+                    # 🔑 첨부 영역 초기화
+                    st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+                    st.rerun()
+
         except Exception as e:
             st.error(f"크롤링 중 오류 발생: {e}")
+        except openai.BadRequestError as e:
+        # Azure OpenAI 콘텐츠 필터에 걸린 경우
+            st.markdown("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
 
         url_input = ""
         key = "url_" + st.session_state["upload_key"]
         if key in st.session_state:
             del st.session_state[key]
 
-        # 🔑 첨부 영역 초기화
-        st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
 
-        st.rerun()
