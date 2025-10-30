@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>분노 메일함</title>
+  <style>
+    :root {
+      --bg: #fffafa;
+      --primary: #e57373;
+      --accent: #ef9a9a;
+      --text: #333;
+      --muted: #666;
+      --angry: #fde0e0;
+      --border: #f2c2c2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard","Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      color: #2b2b2b;
+      padding: 16px 20px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    header .badge {
+      background: #fff0f0; color: #7a1f1f;
+      padding: 6px 10px; border-radius: 999px;
+      font-weight: 600; font-size: 14px;
+      border: 1px solid #f2c2c2;
+    }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; }
+    .container {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 64px);
+    }
+    aside { border-right: 1px solid var(--border); background: #fffdfd; }
+    .search {
+      padding: 12px; border-bottom: 1px solid var(--border);
+      background: #fff5f5;
+    }
+    .search input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #f2c2c2; border-radius: 8px;
+      outline: none; font-size: 14px;
+      background: #ffffff;
+    }
+    .list { display: flex; flex-direction: column; }
+    .mail-item {
+      display: grid; grid-template-columns: 28px 1fr auto;
+      gap: 10px; padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; background: #fff;
+    }
+    .mail-item:hover { background: #fff6f6; }
+    .emoji { font-size: 18px; align-self: center; }
+    .mail-meta { display: grid; gap: 4px; }
+    .subject { font-weight: 700; font-size: 14px; }
+    .preview { color: var(--muted); font-size: 13px; line-height: 1.3; }
+    .time { color: var(--muted); font-size: 12px; align-self: center; }
+    .label {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 999px;
+      background: var(--angry); border: 1px solid #f2c2c2; color: #7a1f1f;
+      margin-left: 6px;
+    }
+    main { background: #fff; display: grid; grid-template-rows: auto 1fr; }
+    .detail-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      background: #fff8f8; display: flex; align-items: center; gap: 10px;
+    }
+    .detail-header h2 { margin: 0; font-size: 18px; }
+    .detail-body { padding: 20px; line-height: 1.7; font-size: 15px; }
+    .meta-line { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+    .toolbar { margin-left: auto; display: flex; gap: 8px; }
+    .btn {
+      padding: 8px 12px; font-size: 13px; border-radius: 8px;
+      border: 1px solid #f2c2c2; background: #ffffff; cursor: pointer;
+    }
+    .btn:hover { background: #ffeaea; }
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="badge">😠 분노</span>
+    <h1>분노 메일함</h1>
+    <div class="toolbar">
+      <button class="btn">새로고침</button>
+      <button class="btn">정렬</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside>
+      <div class="search">
+        <input type="text" placeholder="메일함 검색 (제목/발신자)" />
+      </div>
+      <div class="list" id="mailList">
+        <div class="mail-item" onclick="openMail(0)">
+          <div class="emoji">😠</div>
+          <div class="mail-meta">
+            <div class="subject">회의 지각 <span class="label">분노</span></div>
+            <div class="preview">중요한 회의에 또 늦다니 화가 납니다.</div>
+          </div>
+          <div class="time">오늘</div>
+        </div>
+        <div class="mail-item" onclick="openMail(1)">
+          <div class="emoji">😠</div>
+          <div class="mail-meta">
+            <div class="subject">약속 파기 <span class="label">분노</span></div>
+            <div class="preview">기다렸는데 아무 연락도 없었어요.</div>
+          </div>
+          <div class="time">어제</div>
+        </div>
+        <div class="mail-item" onclick="openMail(2)">
+          <div class="emoji">😠</div>
+          <div class="mail-meta">
+            <div class="subject">불친절한 응대 <span class="label">분노</span></div>
+            <div class="preview">서비스 센터에서 기분이 상했습니다.</div>
+          </div>
+          <div class="time">2일 전</div>
+        </div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="detail-header">
+        <span class="emoji">😠</span>
+        <h2 id="detailSubject">분노의 순간을 기록해요</h2>
+      </div>
+      <div class="detail-body">
+        <div class="meta-line" id="detailMeta">발신: 나에게 · 수신: 분노 메일함 · 날짜: 오늘</div>
+        <div id="detailContent">
+          화가 나는 순간들을 모아두는 공간입니다. 왼쪽 목록에서 메일을 선택하면 내용이 표시됩니다.
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const mails = [
+      {
+        subject: "회의 지각",
+        content: "중요한 회의에 또 늦다니 정말 화가 납니다. 모두의 시간을 존중하지 않는 태도에 분노가 치밀어요.",
+        meta: "발신: 나 · 수신: 분노 메일함 · 날짜: 오늘",
+        emoji: "😠"
+      },
+      {
+        subject: "약속 파기",
+        content: "오랜 시간 기다렸는데 아무 연락도 없이 약속을 어겼습니다. 배신감과 분노가 동시에 밀려옵니다.",
+        meta: "발신: 친구 · 수신: 나 · 날짜: 어제",
+        emoji: "😠"
+      },
+      {
+        subject: "불친절한 응대",
+        content: "서비스 센터에서 무례한 태도를 경험했습니다. 고객을 존중하지 않는 태도에 화가 났습니다.",
+        meta: "발신: 경험 · 수신: 나 · 날짜: 2일 전",
+        emoji: "😠"
+      }
+    ];
+
+    function openMail(index) {
+      const mail = mails[index];
+      document.getElementById("detailSubject").textContent = mail.subject;
+      document.getElementById("detailContent").textContent = mail.content;
+      document.getElementById("detailMeta").textContent = mail.meta;
+    }
+  </script>
+</body>
+</html>
