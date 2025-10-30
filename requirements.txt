@@ -7,3 +7,4 @@ whisper
 python-dotenv
 tensorflow
 gdown
+mtcnn
