@@ -248,16 +248,16 @@ elif st.session_state.page == "chat":
                 
                 return_new_emotion(reply)
 
-                st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
-
-                st.rerun()
-
             except openai.BadRequestError as e:
             # Azure OpenAI 콘텐츠 필터에 걸린 경우
                 st.markdown("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
 
             uploaded_excel = None  # 업로드 초기화
             st.session_state["uploaded_excel"] = None
+
+            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+            st.rerun()
 
     # -------------------------------
     # 동영상 첨부 (얼굴인식, 음성인식)
@@ -342,17 +342,18 @@ elif st.session_state.page == "chat":
 
                 return_new_emotion(reply)
 
-                # 🔑 첨부 영역 초기화
-                st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
-
-                st.rerun()
             except openai.BadRequestError as e:
             # Azure OpenAI 콘텐츠 필터에 걸린 경우
-                st.error("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
+                st.markdown("⚠️ 입력에 민감한 표현이 포함되어 응답이 제한되었습니다. 표현을 조금 바꿔 다시 시도해주세요.")
                 
             uploaded_video = None
             if "video_processed" in st.session_state:
                 del st.session_state["video_processed"]
+
+            # 🔑 첨부 영역 초기화
+            st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+            st.rerun()
     # -------------------------------
     # URL 첨부 (메일함)
     # -------------------------------    
@@ -394,11 +395,6 @@ elif st.session_state.page == "chat":
                         else:
                             st.markdown(line)
 
-                    # 🔑 첨부 영역 초기화
-                    st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
-
-                    st.rerun()
-
         except Exception as e:
             st.error(f"크롤링 중 오류 발생: {e}")
         except openai.BadRequestError as e:
@@ -409,5 +405,10 @@ elif st.session_state.page == "chat":
         key = "url_" + st.session_state["upload_key"]
         if key in st.session_state:
             del st.session_state[key]
+
+        # 🔑 첨부 영역 초기화
+        st.session_state["upload_key"] = str(int(st.session_state["upload_key"]) + 1)
+
+        st.rerun()
 
 
