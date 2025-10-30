@@ -13,3 +13,4 @@ tqdm
 Pillow
 Flask
 tf-keras
+openpyxl
