@@ -92,7 +92,7 @@ def recommend_content_for_emotion(user_input):
         "vector": {
             "value": query_vector,
             "fields": "text_vector",
-            "k": 3
+            "k": 6
         },
         "select": "chunk"
     }
@@ -122,7 +122,6 @@ def use_openAI(user_input, recommended_texts):
         f"3. 필요하다면 추가적인 외부 콘텐츠(유튜브 영상, 글귀, 시, 간단한 게임 링크 등)를 간단한 설명과 함께 URL로 추천하세요.\n"
         f"4. 전체 톤은 따뜻하고 코칭하는 듯한 어조로 유지하세요."
     )
-    print(prompt)
 
     messages = [{"role": "system", "content": prompt}] + st.session_state.chat_history
     response = openai.chat.completions.create(
@@ -302,6 +301,7 @@ elif st.session_state.page == "chat":
         text += f"사용자의 음성 내용: {transcript}\n"
         sources.append("동영상(얼굴)")
         sources.append("동영상(음성)")
+        print(text)
 
         with st.spinner("🧠 감정 코칭 분석 중..."):
 
