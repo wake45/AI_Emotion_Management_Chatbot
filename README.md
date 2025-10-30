@@ -13,6 +13,7 @@ AI 감정 관리 챗봇 프로젝트 (업무 스트레스 완화 및 관리)
 https://lsu-web-1030-g0fcg9c9fzhneug6.swedencentral-01.azurewebsites.net/
 
 # 기능
+## 채팅 기능
 ## 엑셀 업로드 (streamlit, pandas)
 ### 1. streamlit의 file_uploader를 사용해서 파일 객체 저장
 ### 2. pandas의 read_excel을 사용해서 DataFrame으로 변환 (엑셀 내용 문자열 변환)
@@ -26,7 +27,7 @@ https://lsu-web-1030-g0fcg9c9fzhneug6.swedencentral-01.azurewebsites.net/
 ### 1. request.get 으로 웹페이지의 HTML 가져오기
 ### 2. BeautifulSoup 으로 HTML 파싱 (텍스트만 추출)
 ## Semantic Serach (recommend_content_for_emotion function)
-### 1. Azure OpenAI 임베딩 모델을 사용해 입력된 텍스를 벡터로 변환
+### 1. Azure OpenAI 임베딩 모델을 사용해 입력된 텍스트를 벡터로 변환
 ### 2. Azure AI Search에 전달하여 유사한 문서 검색
 ### - Blob Storage에 콘텐츠 제공을 위한 데이터셋(word) 저장
 ### - Azure AI Search에 Import 하여 Indexer 생성
