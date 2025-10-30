@@ -5,7 +5,7 @@ requests
 opencv-python-headless
 openai-whisper
 python-dotenv
-tensorflow-cpu==2.15.0
+tensorflow-cpu
 gdown
 mtcnn
 retina-face
