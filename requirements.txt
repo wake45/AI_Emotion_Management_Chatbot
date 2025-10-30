@@ -5,6 +5,10 @@ requests
 opencv-python-headless
 whisper
 python-dotenv
-tensorflow
+tensorflow-cpu
 gdown
 mtcnn
+retina-face
+tqdm
+Pillow
+Flask
