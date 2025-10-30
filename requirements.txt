@@ -12,4 +12,5 @@ retina-face
 tqdm
 Pillow
 Flask
+tf-keras
 openpyxl
