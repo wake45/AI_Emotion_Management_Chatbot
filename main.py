@@ -125,8 +125,6 @@ def use_openAI(user_input, recommended_texts):
     )
  
     messages = [{"role": "system", "content": prompt}] + st.session_state.chat_history
-    print(messages)
-
     response = openai.chat.completions.create(
         model="dev-gpt-4.1-mini",
         messages=messages,
@@ -306,12 +304,13 @@ elif st.session_state.page == "chat":
         transcript = result["text"]
 
         emotion_summary = Counter(emotions).most_common()
-        dominant_emotion = emotion_summary[0][0] if emotion_summary else "unknown"
+        print(emotion_summary)
+        #dominant_emotion = emotion_summary[0][0] if emotion_summary else "unknown"
 
-        text = f"영상에서 추정된 감정은 '{dominant_emotion}'입니다.  \n"
-        #text += f"사용자의 음성 내용: {transcript}  \n"
+        text = f"영상에서 추정된 감정은 '{emotion_summary}'입니다.  \n"
+        text += f"사용자의 음성 내용: {transcript}  \n"
         sources.append("동영상(얼굴)")
-        #sources.append("동영상(음성)")
+        sources.append("동영상(음성)")
         
         st.session_state.chat_history.append({
             "role": "user",
