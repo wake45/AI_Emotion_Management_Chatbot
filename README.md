@@ -37,6 +37,7 @@ https://lsu-web-1030-g0fcg9c9fzhneug6.swedencentral-01.azurewebsites.net/
 ### 3. OpenAI API 호출
 ### 4. 결과 출력
 
+<사용기술>
 - BeautifulSoup → 웹페이지 텍스트 추출
 - Whisper → 음성 → 텍스트 변환
 - FFmpeg → 오디오/비디오 변환·추출 툴
